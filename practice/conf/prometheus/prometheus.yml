@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 1s
+scrape_configs:
+  - job_name: 'security'
+    static_configs:
+      - targets: [ 'security:3000' ]
+  - job_name: 'uploader'
+    static_configs:
+      - targets: [ 'uploader:3000' ]
+  - job_name: 'storage'
+    metrics_path: /minio/v2/metrics/cluster
+    static_configs:
+      - targets: [ 'storage:9000' ]

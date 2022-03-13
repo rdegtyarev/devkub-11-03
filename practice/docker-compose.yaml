@@ -1,7 +1,15 @@
+version: "3"
 volumes:
   data:
+    driver: local
   prometheus-data:
+    driver: local
   grafana_data:
+    driver: local
+  elastic_hot_data:
+    driver: local
+  elastic_warm_data:
+    driver: local
 
 services:
   storage:
@@ -67,3 +75,104 @@ services:
       - storage
       - uploader
       - security
+  
+  terminal:
+    image: ubuntu:latest
+    stdin_open: true
+    tty: true
+  
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./conf/prometheus:/etc/prometheus/
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    ports:
+      - 9090:9090
+    restart: always
+    
+  grafana:
+    image: grafana/grafana
+    environment:
+      # - GF_AUTH_DISABLE_LOGIN_FORM=true
+      # - GF_AUTH_ANONYMOUS_ENABLED=true
+      # - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_SECURITY_ADMIN_USER=${Grafana_Login}
+      - GF_SECURITY_ADMIN_PASSWORD=${Grafana_Password}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./conf/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./conf/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - 3000:3000
+
+  elastic-hot:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    environment:
+      - node.name=elastic-hot
+      - cluster.name=${CLUSTER_NAME}
+      - discovery.seed_hosts=elastic-warm
+      - cluster.initial_master_nodes=elastic-hot,elastic-warm
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - ${ES_PORT}:9200
+    volumes:
+      - elastic_hot_data:/usr/share/elasticsearch/data:Z
+    mem_limit: ${MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    # networks:
+    #   - elastic
+    depends_on:
+      - elastic-warm
+
+  elastic-warm:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    environment:
+      - node.name=elastic-warm
+      - cluster.name=${CLUSTER_NAME}
+      - discovery.seed_hosts=elastic-hot
+      - cluster.initial_master_nodes=elastic-hot,elastic-warm
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elastic_warm_data:/usr/share/elasticsearch/data:Z
+    mem_limit: ${MEM_LIMIT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    # networks:
+    #   - elastic
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    container_name: kibana
+    ports:
+      - ${KIBANA_PORT}:5601
+    environment:
+      ELASTICSEARCH_URL: http://elastic-hot:9200
+      ELASTICSEARCH_HOSTS: '["http://elastic-hot:9200","http://elastic-warm:9200"]'
+    # networks:
+    #   - elastic
+    depends_on:
+      - elastic-hot
+      - elastic-warm
+  
+  vector:
+    image: timberio/vector:0.20.0-debian
+    ports:
+      - 8083:8083
+      - 8686:8686
+    volumes:
+      - ./conf/vector:/etc/vector
+    depends_on:
+      - elastic-hot
+      - elastic-warm
+    # stdin_open: true
+    # tty: true
