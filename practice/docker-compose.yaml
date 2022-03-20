@@ -1,4 +1,5 @@
 version: "3"
+
 volumes:
   data:
     driver: local
@@ -75,12 +76,7 @@ services:
       - storage
       - uploader
       - security
-  
-  terminal:
-    image: ubuntu:latest
-    stdin_open: true
-    tty: true
-  
+
   prometheus:
     image: prom/prometheus:latest
     volumes:
@@ -94,17 +90,14 @@ services:
   grafana:
     image: grafana/grafana
     environment:
-      # - GF_AUTH_DISABLE_LOGIN_FORM=true
-      # - GF_AUTH_ANONYMOUS_ENABLED=true
-      # - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_SECURITY_ADMIN_USER=${Grafana_Login}
-      - GF_SECURITY_ADMIN_PASSWORD=${Grafana_Password}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_LOGIN}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - ./conf/grafana/datasources:/etc/grafana/provisioning/datasources
       - ./conf/grafana/dashboards:/etc/grafana/provisioning/dashboards
     ports:
-      - 3000:3000
+      - ${GRAFANA_PORT}:3000
 
   elastic-hot:
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
@@ -125,8 +118,6 @@ services:
       memlock:
         soft: -1
         hard: -1
-    # networks:
-    #   - elastic
     depends_on:
       - elastic-warm
 
@@ -147,8 +138,6 @@ services:
       memlock:
         soft: -1
         hard: -1
-    # networks:
-    #   - elastic
 
   kibana:
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
@@ -158,8 +147,6 @@ services:
     environment:
       ELASTICSEARCH_URL: http://elastic-hot:9200
       ELASTICSEARCH_HOSTS: '["http://elastic-hot:9200","http://elastic-warm:9200"]'
-    # networks:
-    #   - elastic
     depends_on:
       - elastic-hot
       - elastic-warm
@@ -171,8 +158,8 @@ services:
       - 8686:8686
     volumes:
       - ./conf/vector:/etc/vector
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - elastic-hot
       - elastic-warm
-    # stdin_open: true
-    # tty: true
+      - kibana
