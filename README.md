@@ -121,6 +121,8 @@ docker compose файл запустив который можно перейт�
 
 ### Задача 4: решение  
 
+https://github.com/rdegtyarev/devkub-11-03/blob/main/practice/docker-compose.yaml
+
 После запуска интерфейс Kibana доступен по адресу http://localhost:8081
 
 ---
@@ -149,6 +151,8 @@ docker compose файл запустив который можно перейт�
 </details>
 
 ### Задача 5: решение  
+
+https://github.com/rdegtyarev/devkub-11-03/blob/main/practice/docker-compose.yaml
 
 После запуска интерфейс Grafana доступен по адресу http://localhost:8082
 
